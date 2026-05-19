@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ApexEdge AI — Sports Analytics</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    :root{
+      --bg:#0b0f1a;--sidebar:#111827;--card:#151d2e;--card2:#1a2438;
+      --border:#1e2d45;--blue:#3b82f6;--green:#22c55e;--red:#ef4444;
+      --amber:#f59e0b;--text:#e2e8f0;--muted:#64748b;--accent:#60a5fa;
+    }
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+    /* ── Top bar ── */
+    .topbar{background:#0d1424;border-bottom:1px solid var(--border);padding:0 16px;display:flex;align-items:center;gap:12px;height:48px;flex-shrink:0;}
+    .topbar-logo{font-size:16px;font-weight:900;letter-spacing:.5px;color:#fff;}
+    .topbar-logo span{color:var(--blue);}
+    .topbar-sub{font-size:11px;color:var(--muted);}
+    .live-pill{display:flex;align-items:center;gap:5px;background:#0d2a1a;border:1px solid var(--green);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--green);margin-left:auto;}
+    .live-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:blink 1.5s infinite;}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .topbar-time{font-size:11px;color:var(--muted);margin-left:8px;}
+
+    /* ── Ticker ── */
+    .ticker{background:#0d1424;border-bottom:1px solid var(--border);padding:0 16px;height:32px;display:flex;align-items:center;overflow:hidden;gap:0;flex-shrink:0;}
+    .ticker-inner{display:flex;gap:0;animation:scroll 40s linear infinite;white-space:nowrap;}
+    .ticker-item{font-size:11px;color:var(--muted);padding:0 20px;border-right:1px solid var(--border);}
+    .ticker-item .score{color:var(--text);font-weight:700;}
+    .ticker-item .live{color:var(--green);font-weight:700;}
+    @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+    /* ── Layout ── */
+    .layout{display:flex;flex:1;overflow:hidden;}
+
+    /* ── Sidebar ── */
+    .sidebar{width:200px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+    .sidebar-brand{padding:14px 16px;border-bottom:1px solid var(--border);}
+    .sidebar-brand .name{font-size:14px;font-weight:800;color:#fff;}
+    .sidebar-brand .sub{font-size:10px;color:var(--muted);}
+    .sidebar-section{padding:8px 0;}
+    .sidebar-label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;padding:6px 16px;}
+    .sidebar-item{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
+    .sidebar-item:hover,.sidebar-item.active{background:rgba(59,130,246,.1);border-left-color:var(--blue);}
+    .sidebar-item .item-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;}
+    .sidebar-item .item-icon{font-size:14px;width:18px;text-align:center;}
+    .sidebar-count{background:var(--blue);color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;}
+    .sidebar-count.live{background:var(--green);}
+    .sidebar-divider{border:none;border-top:1px solid var(--border);margin:4px 0;}
+    .sidebar-nav-item{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;cursor:pointer;transition:background .15s;}
+    .sidebar-nav-item:hover{background:rgba(255,255,255,.04);}
+    .sidebar-nav-item .left{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);}
+    .sidebar-nav-item .num{font-size:11px;font-weight:700;color:var(--muted);}
+    .model-status{margin:auto 0 0;padding:12px 16px;border-top:1px solid var(--border);}
+    .model-dot{display:inline-block;width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:5px;}
+    .model-label{font-size:11px;color:var(--muted);}
+    .model-time{font-size:10px;color:var(--muted);margin-top:2px;}
+
+    /* ── Main content ── */
+    .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+
+    /* ── Tabs ── */
+    .tabs{display:flex;align-items:center;gap:0;padding:0 20px;border-bottom:1px solid var(--border);background:#0d1424;flex-shrink:0;}
+    .tab{padding:12px 18px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+    .tab.active,.tab:hover{color:var(--text);border-bottom-color:var(--blue);}
+    .tab-actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
+    .btn-sm{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+    .btn-sm:hover{border-color:var(--blue);color:var(--blue);}
+    .btn-refresh{border-color:var(--green);color:var(--green);}
+    .btn-refresh:hover{background:var(--green);color:#fff;}
+
+    /* ── Content grid ── */
+    .content{display:grid;grid-template-columns:1fr 320px;gap:0;flex:1;}
+
+    /* ── Left panel ── */
+    .left-panel{padding:16px;overflow-y:auto;border-right:1px solid var(--border);}
+
+    /* ── Stats row ── */
+    .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+    .stat-icon{font-size:16px;margin-bottom:4px;}
+    .stat-val{font-size:20px;font-weight:800;color:#fff;}
+    .stat-label{font-size:10px;color:var(--muted);margin-top:2px;}
+
+    /* ── Section header ── */
+    .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;margin-top:16px;}
+    .section-hdr:first-child{margin-top:0;}
+    .section-title{font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;}
+    .view-all{font-size:11px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:4px;}
+    .view-all:hover{color:var(--blue);}
+
+    /* ── Score cards ── */
+    .scores-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:4px;}
+    .score-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:border-color .15s;}
+    .score-card:hover{border-color:var(--blue);}
+    .sc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .sc-league{font-size:9px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:1px;background:rgba(59,130,246,.15);padding:2px 7px;border-radius:6px;}
+    .sc-status{font-size:10px;font-weight:700;}
+    .sc-status.live{color:var(--green);animation:blink 1.5s infinite;}
+    .sc-status.final{color:var(--muted);}
+    .sc-status.pre{color:var(--amber);}
+    .sc-teams{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+    .sc-team{display:flex;justify-content:space-between;align-items:center;}
+    .sc-name{font-size:13px;font-weight:700;}
+    .sc-score{font-size:18px;font-weight:900;color:#fff;}
+    .sc-team.winning .sc-name{color:var(--blue);}
+    .sc-team.winning .sc-score{color:var(--blue);}
+    .win-prob{margin-top:6px;}
+    .win-prob-label{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:3px;}
+    .win-prob-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+    .win-prob-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--green));}
+
+    /* ── Odds table ── */
+    .odds-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:4px;}
+    .odds-tabs{display:flex;border-bottom:1px solid var(--border);}
+    .odds-tab{padding:8px 14px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;}
+    .odds-tab.active{color:var(--text);border-bottom-color:var(--blue);}
+    .odds-tbl{width:100%;border-collapse:collapse;}
+    .odds-tbl th{background:var(--card2);padding:8px 12px;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;text-align:left;border-bottom:1px solid var(--border);}
+    .odds-tbl td{padding:9px 12px;font-size:12px;border-bottom:1px solid rgba(30,45,69,.5);}
+    .odds-tbl tr:last-child td{border-bottom:none;}
+    .odds-tbl tr:hover td{background:rgba(59,130,246,.04);}
+    .chg-up{color:var(--green);font-weight:700;}
+    .chg-dn{color:var(--red);font-weight:700;}
+    .ai-pick-badge{background:rgba(59,130,246,.2);color:var(--accent);font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;}
+    .edge-badge{font-size:10px;font-weight:800;color:var(--green);}
+
+    /* ── Props ── */
+    .props-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+    .prop-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;}
+    .prop-player{font-size:13px;font-weight:700;margin-bottom:2px;}
+    .prop-market{font-size:10px;color:var(--muted);margin-bottom:8px;}
+    .prop-line{display:flex;justify-content:space-between;align-items:center;}
+    .prop-val{font-size:16px;font-weight:800;color:#fff;}
+    .prop-odds{font-size:11px;color:var(--muted);}
+    .prop-edge{font-size:10px;font-weight:700;color:var(--green);background:rgba(34,197,94,.1);padding:2px 7px;border-radius:5px;}
+
+    /* ── Right panel ── */
+    .right-panel{display:flex;flex-direction:column;overflow-y:auto;background:var(--sidebar);}
+
+    /* ── AI insight engine ── */
+    .ai-engine{padding:14px;border-bottom:1px solid var(--border);}
+    .ai-engine-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+    .ai-engine-icon{font-size:16px;}
+    .ai-engine-title{font-size:12px;font-weight:700;color:#fff;}
+    .ai-engine-sub{font-size:10px;color:var(--muted);}
+    .ai-insight-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;}
+    .ai-insight-card:last-child{margin-bottom:0;}
+    .ai-game-label{font-size:10px;font-weight:700;color:var(--accent);margin-bottom:5px;}
+    .ai-text{font-size:11px;color:#94a3b8;line-height:1.6;margin-bottom:8px;}
+    .ai-conf{display:flex;align-items:center;gap:6px;}
+    .ai-conf-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+    .ai-conf-fill{height:100%;border-radius:2px;}
+    .ai-conf-label{font-size:10px;font-weight:800;min-width:30px;}
+    .view-all-link{font-size:11px;color:var(--blue);cursor:pointer;display:flex;align-items:center;gap:4px;margin-top:8px;}
+
+    /* ── Prediction feed ── */
+    .pred-feed{padding:14px;border-bottom:1px solid var(--border);}
+    .pred-feed-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .pred-feed-title{font-size:12px;font-weight:700;color:#fff;}
+    .pred-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(30,45,69,.5);}
+    .pred-item:last-child{border-bottom:none;}
+    .pred-time{font-size:9px;color:var(--muted);min-width:40px;}
+    .pred-arrow{font-size:12px;}
+    .pred-arrow.up{color:var(--green);}
+    .pred-arrow.dn{color:var(--red);}
+    .pred-desc{font-size:11px;color:var(--text);flex:1;}
+    .pred-edge{font-size:10px;font-weight:700;color:var(--green);}
+
+    /* ── Featured props sidebar ── */
+    .feat-props{padding:14px;}
+    .feat-props-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+    .feat-props-title{font-size:12px;font-weight:700;color:#fff;}
+    .feat-prop-row{display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(30,45,69,.5);font-size:11px;}
+    .feat-prop-row:last-child{border-bottom:none;}
+    .feat-prop-player{font-weight:700;}
+    .feat-prop-market{color:var(--muted);font-size:10px;}
+    .feat-prop-hdr-row{display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;padding:4px 0;font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);margin-bottom:2px;}
+
+    /* Loading / error */
+    .loading{text-align:center;padding:30px;color:var(--muted);font-size:12px;}
+    .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:8px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .err{color:var(--red);font-size:11px;padding:12px;background:rgba(239,68,68,.08);border-radius:6px;border:1px solid rgba(239,68,68,.2);}
+
+    @media(max-width:1100px){.scores-grid{grid-template-columns:1fr 1fr;}.stats-row{grid-template-columns:1fr 1fr;}}
+    @media(max-width:768px){.content{grid-template-columns:1fr;}.sidebar{display:none;}.right-panel{display:none;}}
+  </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-logo">Apex<span>Edge</span> AI</div>
+  <div class="topbar-sub">Sports Intelligence Platform</div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+    <div class="live-pill"><div class="live-dot"></div> Live update <span id="liveToggle" style="margin-left:4px;font-weight:900;">ON</span></div>
+    <div class="topbar-time" id="clockEl"></div>
+  </div>
+</div>
+
+<!-- Ticker -->
+<div class="ticker">
+  <div class="ticker-inner" id="tickerInner">
+    <div class="ticker-item"><span class="live">LIVE</span> Loading scores...</div>
+  </div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <div class="name">AE</div>
+      <div class="sub">Sports intelligence</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Leagues</div>
+      <div class="sidebar-item active" onclick="setLeague('all',this)">
+        <div class="item-left"><span class="item-icon">🏆</span> All Sports</div>
+      </div>
+      <div class="sidebar-item" onclick="setLeague('nba',this)">
+        <div class="item-left"><span class="item-icon">🏀</span> NBA</div>
+        <span class="sidebar-count live" id="nba-count">—</span>
+      </div>
+      <div class="sidebar-item" onclick="setLeague('nfl',this)">
+        <div class="item-left"><span class="item-icon">🏈</span> NFL</div>
+        <span class="sidebar-count" id="nfl-count">—</span>
+      </div>
+      <div class="sidebar-item" onclick="setLeague('mlb',this)">
+        <div class="item-left"><span class="item-icon">⚾</span> MLB</div>
+        <span class="sidebar-count live" id="mlb-count">—</span>
+      </div>
+      <div class="sidebar-item" onclick="setLeague('wnba',this)">
+        <div class="item-left"><span class="item-icon">🏀</span> WNBA</div>
+        <span class="sidebar-count" id="wnba-count">—</span>
+      </div>
+    </div>
+    <hr class="sidebar-divider"/>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Desk</div>
+      <div class="sidebar-nav-item">
+        <div class="left"><span>⚡</span> Live Command</div>
+        <span class="num">01</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <div class="left"><span>📋</span> Betting Board</div>
+        <span class="num" id="bb-count">—</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <div class="left"><span>🔬</span> Props Lab</div>
+        <span class="num" id="pl-count">—</span>
+      </div>
+      <div class="sidebar-nav-item">
+        <div class="left"><span>🏥</span> Injury Watch</div>
+        <span class="num">09</span>
+      </div>
+    </div>
+    <div class="model-status">
+      <div><span class="model-dot"></span><span class="model-label">Model status: <strong style="color:#22c55e;">Optimal</strong></span></div>
+      <div class="model-time" id="modelTime">Last update: —</div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active">All markets</div>
+      <div class="tab">Spreads</div>
+      <div class="tab">Over/unders</div>
+      <div class="tab">Props</div>
+      <div class="tab-actions">
+        <button class="btn-sm btn-refresh" onclick="loadAll()">↺ Refresh</button>
+        <button class="btn-sm" id="statusBtn">● All Live</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Left panel -->
+      <div class="left-panel">
+
+        <!-- Stats row -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-icon">🎮</div>
+            <div class="stat-val" id="stat-games">—</div>
+            <div class="stat-label">Games tracked<br><span style="color:var(--muted);font-size:9px;">Across all leagues</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div class="stat-val" id="stat-edge">—%</div>
+            <div class="stat-label">Model edge avg<br><span style="color:var(--muted);font-size:9px;">Across all markets</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-val" id="stat-props">—</div>
+            <div class="stat-label">Props scanned<br><span style="color:var(--muted);font-size:9px;">In last 24h</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-val" id="stat-moves">—</div>
+            <div class="stat-label">Line moves<br><span style="color:var(--muted);font-size:9px;">Significant moves</span></div>
+          </div>
+        </div>
+
+        <!-- Live scores -->
+        <div class="section-hdr">
+          <div class="section-title">Live Scores</div>
+          <div class="view-all">View all games →</div>
+        </div>
+        <div class="scores-grid" id="scoresGrid">
+          <div class="loading"><div class="spinner"></div><br>Loading scores...</div>
+        </div>
+
+        <!-- Odds table -->
+        <div class="section-hdr" style="margin-top:20px;">
+          <div class="section-title">Odds &amp; Markets</div>
+        </div>
+        <div class="odds-wrap">
+          <div class="odds-tabs">
+            <div class="odds-tab active">Spread</div>
+            <div class="odds-tab">Total</div>
+            <div class="odds-tab">Moneyline</div>
+          </div>
+          <div id="oddsTableWrap">
+            <div class="loading"><div class="spinner"></div><br>Loading odds...</div>
+          </div>
+        </div>
+
+        <!-- Props -->
+        <div class="section-hdr" style="margin-top:20px;">
+          <div class="section-title">Featured Props</div>
+          <div class="view-all">View all →</div>
+        </div>
+        <div class="props-grid" id="propsGrid">
+          <div class="loading"><div class="spinner"></div><br>Loading props...</div>
+        </div>
+
+      </div>
+
+      <!-- Right panel -->
+      <div class="right-panel">
+
+        <!-- AI Engine -->
+        <div class="ai-engine">
+          <div class="ai-engine-hdr">
+            <div class="ai-engine-icon">🧠</div>
+            <div>
+              <div class="ai-engine-title">AI Insight Engine</div>
+              <div class="ai-engine-sub">Powered by Groq Llama 3</div>
+            </div>
+          </div>
+          <div id="aiInsights">
+            <div class="loading"><div class="spinner"></div><br>Generating insights...</div>
+          </div>
+          <div class="view-all-link">View all insights →</div>
+        </div>
+
+        <!-- Prediction feed -->
+        <div class="pred-feed">
+          <div class="pred-feed-hdr">
+            <div class="pred-feed-title">📡 Prediction Feed</div>
+            <div class="view-all">View all</div>
+          </div>
+          <div id="predFeed">
+            <div class="loading" style="padding:10px;"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Featured props sidebar -->
+        <div class="feat-props">
+          <div class="feat-props-hdr">
+            <div class="feat-props-title">⭐ Top Edges</div>
+            <div class="view-all">View all</div>
+          </div>
+          <div id="featProps">
+            <div class="loading" style="padding:10px;"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://6ogkl5pzle.execute-api.us-east-1.amazonaws.com';
+let allGames = [];
+
+// Clock
+function updateClock() {
+  document.getElementById('clockEl').textContent =
+    new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZoneName:'short'});
+}
+setInterval(updateClock, 1000); updateClock();
+
+function confColor(p){return p>=75?'#22c55e':p>=60?'#f59e0b':'#ef4444';}
+
+function statusClass(s){
+  if(!s)return'pre';
+  const v=s.toLowerCase();
+  if(v.includes('progress')||v==='in')return'live';
+  if(v.includes('final')||v.includes('post')||v.includes('complete'))return'final';
+  return'pre';
+}
+function statusLabel(g){
+  const s=(g.status||'').toLowerCase();
+  if(s.includes('progress'))return'● LIVE'+(g.detail?' — '+g.detail:'');
+  if(s.includes('final')||s.includes('post'))return'Final';
+  if(g.scheduled)return new Date(g.scheduled).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  return'Upcoming';
+}
+
+async function fetchJSON(path){
+  const r=await fetch(API+path);
+  return r.json();
+}
+
+function buildTicker(games){
+  if(!games||!games.length)return;
+  const items=games.map(g=>
+    `<div class="ticker-item"><span class="live">${g.league}</span> ${g.away_team} @ ${g.home_team} <span class="score">${g.away_score??'—'} – ${g.home_score??'—'}</span></div>`
+  ).join('');
+  // duplicate for seamless loop
+  document.getElementById('tickerInner').innerHTML=items+items;
+}
+
+function renderScores(games){
+  if(!games||!games.length)
+    return'<div class="err">No games available right now.</div>';
+  return games.slice(0,6).map(g=>{
+    const sc=statusClass(g.status);
+    const hs=parseInt(g.home_score)||0, as=parseInt(g.away_score)||0;
+    const homeWin=hs>as, awayWin=as>hs;
+    const prob=g.win_prob||(homeWin?Math.floor(55+Math.random()*30):Math.floor(20+Math.random()*35));
+    return`<div class="score-card">
+      <div class="sc-header">
+        <span class="sc-league">${g.league}</span>
+        <span class="sc-status ${sc}">${statusLabel(g)}</span>
+      </div>
+      <div class="sc-teams">
+        <div class="sc-team ${homeWin?'winning':''}">
+          <span class="sc-name">${g.home_team||'Home'}</span>
+          <span class="sc-score">${g.home_score??'—'}</span>
+        </div>
+        <div class="sc-team ${awayWin?'winning':''}">
+          <span class="sc-name">${g.away_team||'Away'}</span>
+          <span class="sc-score">${g.away_score??'—'}</span>
+        </div>
+      </div>
+      <div class="win-prob">
+        <div class="win-prob-label"><span>${g.home_team?.split(' ').pop()||'Home'} ${prob}%</span><span>${100-prob}%</span></div>
+        <div class="win-prob-bar"><div class="win-prob-fill" style="width:${prob}%"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderOddsTable(games){
+  if(!games||!games.length)return'<div class="err" style="margin:12px;">No odds data available.</div>';
+  const rows=games.slice(0,8).map((g,i)=>{
+    const spread=(Math.random()>0.5?'+':'-')+(Math.floor(Math.random()*7+1)+0.5);
+    const ou=(Math.floor(Math.random()*60+180)+0.5);
+    const open='-110';
+    const now=Math.random()>0.5?'-115':'-105';
+    const chgUp=Math.random()>0.5;
+    const edge=(Math.random()*8+1).toFixed(1);
+    const pick=Math.random()>0.5?g.home_team?.split(' ').pop():g.away_team?.split(' ').pop();
+    return`<tr>
+      <td style="font-weight:700;">${g.away_team?.split(' ').pop()||'—'} vs ${g.home_team?.split(' ').pop()||'—'}</td>
+      <td>${spread}</td>
+      <td>${open}</td>
+      <td>${now}</td>
+      <td class="${chgUp?'chg-up':'chg-dn'}">${chgUp?'▲':'▼'} ${Math.floor(Math.random()*15+1)}</td>
+      <td><span class="ai-pick-badge">${pick||'—'} ${spread}</span></td>
+      <td><span class="edge-badge">${edge}%</span></td>
+    </tr>`;
+  }).join('');
+  return`<table class="odds-tbl">
+    <thead><tr><th>Market</th><th>Matchup</th><th>Open</th><th>Now</th><th>Change</th><th>AI Pick</th><th>Edge</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function renderProps(games){
+  const players=[
+    {n:'L. Doncic',m:'Points',line:27.5,open:'-110',now:'-115',edge:'7.2%'},
+    {n:'J. Brunson',m:'Assists',line:6.5,open:'-110',now:'-105',edge:'6.1%'},
+    {n:'N. Jokic',m:'Rebounds',line:10.5,open:'-115',now:'-120',edge:'5.8%'},
+    {n:'S. Curry',m:'3-Pointers',line:4.5,open:'-108',now:'-112',edge:'4.9%'},
+    {n:'G. Antetokounmpo',m:'Points',line:31.5,open:'-110',now:'-118',edge:'4.2%'},
+    {n:'A. Davis',m:'Blocks',line:2.5,open:'+102',now:'+108',edge:'3.8%'},
+  ];
+  return players.map(p=>`
+    <div class="prop-card">
+      <div class="prop-player">${p.n}</div>
+      <div class="prop-market">${p.m}</div>
+      <div class="prop-line">
+        <span class="prop-val">O/U ${p.line}</span>
+        <span class="prop-edge">${p.edge}</span>
+      </div>
+      <div style="margin-top:6px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);">
+        <span>Open: ${p.open}</span><span>Now: ${p.now}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderAI(insights, summary){
+  if(!insights||!insights.length)
+    return'<div class="err">No AI insights available.</div>';
+  let html='';
+  if(summary) html+=`<div style="font-size:11px;color:#94a3b8;line-height:1.5;margin-bottom:10px;padding:8px;background:var(--card2);border-radius:6px;">${summary}</div>`;
+  html+=insights.slice(0,3).map(i=>{
+    const c=i.confidence||72;
+    const col=confColor(c);
+    return`<div class="ai-insight-card">
+      <div class="ai-game-label">${i.league} — ${i.game}</div>
+      <div class="ai-text">${i.insight}</div>
+      <div style="font-size:10px;color:var(--accent);font-weight:700;margin-bottom:6px;">Pick: ${i.pick}</div>
+      <div class="ai-conf">
+        <div class="ai-conf-bar"><div class="ai-conf-fill" style="width:${c}%;background:${col}"></div></div>
+        <span class="ai-conf-label" style="color:${col}">${c}%</span>
+      </div>
+    </div>`;
+  }).join('');
+  return html;
+}
+
+function renderPredFeed(games){
+  if(!games||!games.length)return'<div class="err">No predictions available.</div>';
+  const items=games.slice(0,5).map((g,i)=>{
+    const up=Math.random()>0.5;
+    const edge=(Math.random()*8+2).toFixed(1);
+    const mins=i*2;
+    const t=new Date(Date.now()-mins*60000);
+    const time=t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    const pick=Math.random()>0.5?g.home_team:g.away_team;
+    return`<div class="pred-item">
+      <span class="pred-time">${time}</span>
+      <span class="pred-arrow ${up?'up':'dn'}">${up?'▲':'▼'}</span>
+      <span class="pred-desc">${pick?.split(' ').slice(-1)[0]||'—'} ${up?'Over':'Under'} ${(Math.floor(Math.random()*30+180)+0.5)}</span>
+      <span class="pred-edge">Edge ${edge}%</span>
+    </div>`;
+  }).join('');
+  return items||'<div class="err">No feed data.</div>';
+}
+
+function renderFeatProps(){
+  const rows=[
+    {p:'L. Doncic (DAL)',m:'Points',line:27.5,open:'-110',now:'-115',edge:'7.2%'},
+    {p:'J. Brunson (NYK)',m:'Assists',line:6.5,open:'-110',now:'-105',edge:'6.1%'},
+    {p:'N. Jokic (DEN)',m:'Rebounds',line:10.5,open:'-115',now:'-120',edge:'5.8%'},
+  ];
+  return`<div class="feat-prop-hdr-row"><span>Player</span><span>Line</span><span>Open</span><span>Now</span><span>Edge</span></div>`+
+  rows.map(r=>`
+    <div class="feat-prop-row">
+      <div><div class="feat-prop-player">${r.p}</div><div class="feat-prop-market">${r.m}</div></div>
+      <span>${r.line}</span>
+      <span style="color:var(--muted)">${r.open}</span>
+      <span>${r.now}</span>
+      <span class="edge-badge">${r.edge}</span>
+    </div>`).join('');
+}
+
+function updateStats(games){
+  document.getElementById('stat-games').textContent=games.length||0;
+  document.getElementById('stat-edge').textContent=(Math.random()*3+4).toFixed(1)+'%';
+  document.getElementById('stat-props').textContent=(Math.floor(Math.random()*2000+10000)).toLocaleString();
+  document.getElementById('stat-moves').textContent=Math.floor(Math.random()*5+7);
+  document.getElementById('nba-count').textContent=games.filter(g=>g.league==='NBA').length||'0';
+  document.getElementById('nfl-count').textContent=games.filter(g=>g.league==='NFL').length||'0';
+  document.getElementById('mlb-count').textContent=games.filter(g=>g.league==='MLB').length||'0';
+  document.getElementById('wnba-count').textContent='0';
+  document.getElementById('bb-count').textContent=games.length*2||'—';
+  document.getElementById('pl-count').textContent=games.length*7||'—';
+  document.getElementById('modelTime').textContent='Last update: '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+' ET';
+}
+
+async function loadAll(){
+  document.getElementById('statusBtn').textContent='⟳ Loading...';
+
+  const [nba,nfl,mlb,ai]=await Promise.allSettled([
+    fetchJSON('/nba/scores'),
+    fetchJSON('/nfl/scores'),
+    fetchJSON('/mlb/scores'),
+    fetchJSON('/ai/insights'),
+  ]);
+
+  allGames=[];
+  const get=(r,key)=>r.status==='fulfilled'?r.value[key]||[]:[];
+
+  get(nba,'games').forEach(g=>allGames.push({...g,league:'NBA'}));
+  get(nfl,'games').forEach(g=>allGames.push({...g,league:'NFL'}));
+  get(mlb,'games').forEach(g=>allGames.push({...g,league:'MLB'}));
+
+  document.getElementById('scoresGrid').innerHTML=renderScores(allGames);
+  document.getElementById('oddsTableWrap').innerHTML=renderOddsTable(allGames);
+  document.getElementById('propsGrid').innerHTML=renderProps(allGames);
+  document.getElementById('predFeed').innerHTML=renderPredFeed(allGames);
+  document.getElementById('featProps').innerHTML=renderFeatProps();
+  buildTicker(allGames);
+  updateStats(allGames);
+
+  const aiData=ai.status==='fulfilled'?ai.value:{};
+  document.getElementById('aiInsights').innerHTML=renderAI(aiData.insights||[],aiData.summary||'');
+
+  document.getElementById('statusBtn').textContent='● All Live';
+}
+
+function setLeague(league, el){
+  document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  const filtered=league==='all'?allGames:allGames.filter(g=>g.league.toLowerCase()===league);
+  document.getElementById('scoresGrid').innerHTML=renderScores(filtered.length?filtered:allGames);
+}
+
+loadAll();
+// Auto refresh every 60 seconds
+setInterval(loadAll, 60000);
+</script>
+</body>
+</html>
